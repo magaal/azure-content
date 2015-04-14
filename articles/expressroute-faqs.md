@@ -136,6 +136,9 @@ Yes. You can link a single virtual network with up to 4 ExpressRoute circuits. A
 ### Can I access the internet from my virtual networks connected to ExpressRoute circuits?
 Yes. If you have not advertised default routes (0.0.0.0/0) or internet route prefixes through the BGP session, you will be able to connect to the internet from a virtual network linked to an ExpressRoute circuit.
 
+### I am unable to issue a ping to an internet IP address and I do not have a default route (0.0.0.0/0) or internet route prefixes advertised - why doesn't it work?
+By default, we restrict internet ICMP inbound and outbound to/from Azure VM's. We recommend using another method to test connectivity - please see the following blog article for recommendations: [Use port pings instead of ICMP to test Azure VM connectivity](http://blogs.msdn.com/b/mast/archive/2014/06/22/use-port-pings-instead-of-icmp-to-test-azure-vm-connectivity.aspx).
+
 ### Can I block internet connectivity to virtual networks connected to ExpressRoute circuits?
 Yes. You can advertise default routes (0.0.0.0/0) to block all internet connectivity to virtual machines deployed within a virtual network and route all traffic out through the ExpressRoute circuit.
 
@@ -160,6 +163,9 @@ Prefixes advertised through BGP must be /29 or larger. We will filter out privat
 ### What happens if I exceed the BGP limits?
 BGP sessions will be dropped. They will be reset once the prefix count goes below the limit.
 
+### I am using a Peer ASN of 65555, as this is in the private range, shouldn't it work?
+65555 is not a valid ASN number. If you are using a private ASN, refer to the [IANA Autonomous System (AS) Numbers](http://www.iana.org/assignments/as-numbers/as-numbers.xhtml) directory. The allowed private ASN range is 64512-65534.
+
 ### After I advertise the default route (0.0.0.0/0) to my virtual networks I can't activate Windows running on my Azure VMs. What can I do?
 The following steps will help Azure recognize the activation request:
 
@@ -167,4 +173,10 @@ The following steps will help Azure recognize the activation request:
 2. Perform a DNS lookup and find the IP address of **kms.core.windows.net**
 3. Then do one of the following two items so that the Key Management Service will recognize that the activation request comes from Azure and will honor the request.
 	- On your on-premises network, route the traffic destined for the IP address (obtained in step 2) back to Azure via the public peering.
-	- Have your NSP provider hair-pin the traffic back to Azure via the public peering. 
+	- Have your NSP provider hair-pin the traffic back to Azure via the public peering.
+
+### I have successfully linked my Virtual Network to a 1Gb (or faster) circuit but I am only able to achieve ~500Mbps of bandwidth to a single Virtual Network - is something wrong?
+No. You are likely provisioned on to a Default gateway SKU. Please resize your gateway to a High Performance SKU. For more details, see [Azure Virtual Network Gateway Improvements](http://azure.microsoft.com/blog/2014/12/02/azure-virtual-network-gateway-improvements/).
+
+### I have successfully established BGP sessions, linked my virtual network, and am able to connect to Azure Virtual Machines from my on-premises datacenter. However, I cannot connect to my on-premises resources with connections initiated from Azure Virtual Machines. Is something wrong?
+Please check your BGP advertisements and ensure you are passing the appropriate routes to Azure. Also double check any firewall rules to ensure you are able to receive traffic from Azure.
