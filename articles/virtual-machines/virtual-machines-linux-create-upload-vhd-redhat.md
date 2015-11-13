@@ -17,7 +17,7 @@
 	ms.author="mingzhan"/>
 
 
-# Prepare a RedHat-based Virtual Machine for Azure
+# Prepare a Red Hat-based Virtual Machine Image for Azure
 In this article, you will learn how to prepare a Red Hat Enterprise Linux (RHEL) Virtual Machine for for use in Azure.  Versions of RHEL covered in this article are 6.6, 6.7, 7.0 and 7.1 and hypervisors for preparation covered in this article are Hyper-V, KVM and VMWare.
 
 
@@ -30,6 +30,8 @@ This section assumes that you have already installed a RHEL image from an ISO fi
 **RHEL Installation Notes**
 
 - The newer VHDX format is not supported in Azure. You can convert the disk to VHD format using Hyper-V Manager or the convert-vhd powershell cmdlet.
+
+- VHD's must be created as "Fixed" - Dynamic VHD's are not supported.
 
 - When installing the Linux system it is recommended that you use standard partitions rather than LVM (often the default for many installations). This will avoid LVM name conflicts with cloned VMs, particularly if an OS disk ever needs to be attached to another VM for troubleshooting. LVM or RAID may be used on data disks if preferred.
 
@@ -805,6 +807,41 @@ This section assumes that you have already installed a RHEL virtual machine in V
 6.	Enter `inst.ks=<the location of the Kickstart file>` at the end of the boot options, and press **Enter**.
 
 7.	Wait for the installation to finish, when it’s finished, the VM will be shutdown automatically. Your Linux VHD is now ready to be uploaded to Azure.
+
+### Resizing VHDs ###
+
+VHD images on Azure must have a virtual size aligned to 1MB.  Typically, VHDs created using Hyper-V should already be aligned correctly.  If the VHD is not aligned correctly then you may receive an error message similar to the following when you attempt to create an *image* from your VHD:
+
+	"The VHD http://<mystorageaccount>.blob.core.windows.net/vhds/MyLinuxVM.vhd has an unsupported virtual size of 21475270656 bytes. The size must be a whole number (in MBs).”
+
+To remedy this you can resize the VM using either the Hyper-V Manager console or the [Resize-VHD](http://technet.microsoft.com/library/hh848535.aspx) Powershell cmdlet.  If you are not running in a Windows environment then it is recommended to use qemu-img to convert (if needed) and resize the VHD.
+
+> [AZURE.NOTE] There is a known bug in qemu-img versions >=2.2.1 that results in an improperly formatted VHD. The issue will be fixed in an upcoming release of qemu-img.  For now it is recommended to use qemu-img version 2.2.0 or lower. Reference: https://bugs.launchpad.net/qemu/+bug/1490611
+
+
+ 1. Resizing the VHD directly using tools such as `qemu-img` or `vbox-manage` may result in an unbootable VHD.  So it is recommended to first convert the VHD to a RAW disk image.  If the VM image was already created as RAW disk image (the default for some Hypervisors such as KVM) then you may skip this step:
+
+		# qemu-img convert -f vpc -O raw MyLinuxVM.vhd MyLinuxVM.raw
+
+ 2. Calculate the required size of the disk image to ensure that the virtual size is aligned to 1MB.  The following bash shell script can assist with this.  The script uses "`qemu-img info`" to determine the virtual size of the disk image and then calculates the size to the next 1MB:
+
+		rawdisk="MyLinuxVM.raw"
+		vhddisk="MyLinuxVM.vhd"
+
+		MB=$((1024*1024))
+		size=$(qemu-img info -f raw --output json "$rawdisk" | \
+		       gawk 'match($0, /"virtual-size": ([0-9]+),/, val) {print val[1]}')
+
+		rounded_size=$((($size/$MB + 1)*$MB))
+		echo "Rounded Size = $rounded_size"
+
+ 3. Resize the raw disk using $rounded_size as set in the above script:
+
+		# qemu-img resize MyLinuxVM.raw $rounded_size
+
+ 4. Now, convert the RAW disk back to a fixed-size VHD:
+
+		# qemu-img convert -f raw -o subformat=fixed -O vpc MyLinuxVM.raw MyLinuxVM.vhd
 
 ##Known issues:
 There are 2 known issues when you are using RHEL 6.6, 7.0 and 7.1 in Hyper-V and Azure.
