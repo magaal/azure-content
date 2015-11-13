@@ -39,6 +39,8 @@ This section assumes that you have already installed a RHEL image from an ISO fi
 
 - All of the VHDs must have sizes that are multiples of 1 MB.
 
+- Previous guidance provided on generic Linux VHD creation on disabling NUMA for larger VM sizes has been fixed and is no longer required with RHEL 6.6+
+
 ###RHEL 6.6/6.7
 
 1.	In Hyper-V Manager, select the virtual machine.
